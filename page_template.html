@@ -1,0 +1,605 @@
+<title>NBA Matchmaker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a front-office cap sheet. Controls strip on top, cap ruler band, then
+   roster sheet (left) beside the match board (right); stacks to one column on phones. */
+:root {
+  --paper: #eef1f4;
+  --sheet: #ffffff;
+  --ink: #16212d;
+  --muted: #5b6878;
+  --rule: #d5dbe2;
+  --wash: #e3e8ee;
+  --accent: #c8501c;
+  --accent-ink: #ffffff;
+  --good: #1d7f53;
+  --bad: #b8382f;
+  --good-wash: #dcefe5;
+  --bad-wash: #f5dfdc;
+  --line-cap: #4f6d8f;
+  --line-tax: #c8501c;
+  --line-ap1: #8a5a9e;
+  --line-ap2: #6b2d2d;
+  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f151c; --sheet: #17202a; --ink: #e5eaf0; --muted: #96a3b3; --rule: #2b3643; --wash: #212c38;
+    --accent: #ec7a43; --accent-ink: #1a0f08; --good: #4cc48a; --bad: #f07a6f; --good-wash: #173a2a; --bad-wash: #432220;
+    --line-cap: #86a6cb; --line-tax: #ec7a43; --line-ap1: #c393d6; --line-ap2: #e08f8f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0f151c; --sheet: #17202a; --ink: #e5eaf0; --muted: #96a3b3; --rule: #2b3643; --wash: #212c38;
+  --accent: #ec7a43; --accent-ink: #1a0f08; --good: #4cc48a; --bad: #f07a6f; --good-wash: #173a2a; --bad-wash: #432220;
+  --line-cap: #86a6cb; --line-tax: #ec7a43; --line-ap1: #c393d6; --line-ap2: #e08f8f;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 14px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 1320px; margin: 0 auto; display: grid; gap: 16px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; text-transform: uppercase; letter-spacing: .02em; margin: 0; text-wrap: balance; }
+h1 { font-size: 2.6rem; line-height: 1; }
+h2 { font-size: 1.35rem; }
+h3 { font-size: 1.05rem; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.label { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+
+header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; background: var(--sheet); }
+.seg button { font: 600 .9rem var(--body); border: 0; background: transparent; color: var(--ink); padding: 9px 14px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--sheet); }
+.seg button:focus-visible, select:focus-visible, input:focus-visible, .btn:focus-visible, tr.row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; }
+.field { display: grid; gap: 4px; min-width: 0; }
+.field.grow { flex: 1 1 260px; }
+select, input[type="search"] { font: 500 .95rem var(--body); color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px; max-width: 100%; }
+.check { display: inline-flex; gap: 6px; align-items: center; font-size: .88rem; color: var(--muted); padding-bottom: 8px; cursor: pointer; }
+
+.band { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; display: grid; gap: 14px; }
+.band-top { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: end; justify-content: space-between; }
+.teamname { font-family: var(--display); font-size: 2rem; font-weight: 700; text-transform: uppercase; line-height: 1; }
+.tiles { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.tile { display: grid; gap: 2px; min-width: 92px; }
+.tile .v { font-family: var(--mono); font-size: 1.35rem; font-weight: 500; }
+.tile .v small { font-size: .8rem; margin-left: 6px; }
+.up { color: var(--good); } .down { color: var(--bad); }
+
+.ruler { position: relative; height: 62px; }
+.ruler .track { position: absolute; left: 0; right: 0; top: 22px; height: 16px; background: var(--wash); border-radius: 3px; }
+.ruler .fill { position: absolute; left: 0; top: 22px; height: 16px; background: var(--ink); border-radius: 3px 0 0 3px; opacity: .85; }
+.ruler .freed { position: absolute; top: 22px; height: 16px; background: repeating-linear-gradient(135deg, var(--accent) 0 4px, transparent 4px 8px); opacity: .8; }
+.ruler .mark { position: absolute; top: 14px; height: 32px; width: 2px; transform: translateX(-1px); }
+.ruler .mark span { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+.ruler .mark em { position: absolute; top: 34px; left: 50%; transform: translateX(-50%); font: .7rem var(--mono); font-style: normal; color: var(--muted); white-space: nowrap; }
+.ruler .mark.active span { text-decoration: underline; text-underline-offset: 3px; }
+.ruler .mark .short { display: none; }
+@media (max-width: 640px) {
+  .ruler .mark .long { display: none; } .ruler .mark .short { display: inline; }
+  .ruler .mark:not(.active) em { display: none; }
+}
+.roomline { font-size: .95rem; }
+.roomline b { font-family: var(--mono); font-weight: 500; }
+
+.grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 16px; align-items: start; }
+@media (max-width: 980px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; min-width: 0; }
+.panel-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 12px; padding: 12px 14px 8px; }
+.panel-head p { margin: 0; color: var(--muted); font-size: .85rem; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+th { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+td { padding: 7px 8px; border-bottom: 1px solid var(--rule); vertical-align: middle; white-space: nowrap; }
+th.r, td.r { text-align: right; }
+td.num, th.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+tr.row { cursor: pointer; }
+tr.row:hover td { background: var(--wash); }
+tr.row.sel td { background: var(--wash); }
+tr.out td { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--accent); }
+tr.out td.keep { text-decoration: none; }
+.pname { font-weight: 600; }
+.sub { color: var(--muted); font-size: .76rem; }
+.tag { display: inline-block; font-size: .66rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; padding: 1px 6px; border-radius: 4px; background: var(--wash); color: var(--muted); margin-left: 6px; vertical-align: 1px; }
+.tag.est { background: var(--bad-wash); color: var(--bad); }
+.tag.fit { background: var(--good-wash); color: var(--good); }
+.tag.star { background: var(--accent); color: var(--accent-ink); }
+.tag.nofit { background: var(--bad-wash); color: var(--bad); }
+tr.out-budget td { opacity: .55; }
+.rank { color: var(--muted); font-family: var(--mono); width: 2.2em; }
+.pos { color: var(--good); } .neg { color: var(--bad); }
+
+.dbar { position: relative; width: 120px; height: 12px; }
+.dbar::before { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--rule); }
+.dbar i { position: absolute; top: 0; height: 12px; border-radius: 2px; }
+.dbar i.p { left: 50%; background: var(--good); }
+.dbar i.n { right: 50%; background: var(--bad); }
+
+tr.detail td { background: var(--paper); white-space: normal; padding: 12px 14px 16px; }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 24px; }
+.detail-grid ul { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 3px; }
+.detail-grid li { display: flex; justify-content: space-between; gap: 12px; font-size: .85rem; }
+.slider { display: grid; gap: 6px; }
+.slider input { width: 100%; accent-color: var(--accent); }
+.ba { display: grid; grid-template-columns: auto 1fr 1fr; gap: 3px 14px; font-size: .88rem; margin-top: 6px; }
+.ba .num { text-align: right; }
+
+.btn { font: 600 .85rem var(--body); background: transparent; color: var(--accent); border: 1px solid var(--accent); border-radius: 6px; padding: 7px 12px; cursor: pointer; }
+.more { padding: 10px 14px 14px; }
+.empty { padding: 18px 14px; color: var(--muted); }
+input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
+
+.pcard { display: flex; flex-wrap: wrap; gap: 10px 26px; align-items: end; }
+.trade-band { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.stat { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.stat .big { font-family: var(--mono); font-size: 1.05rem; }
+.stat .sub { line-height: 1.35; }
+.pill { display: inline-block; font-size: .72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; justify-self: start; }
+.pill.ok { background: var(--good-wash); color: var(--good); }
+.pill.bad { background: var(--bad-wash); color: var(--bad); }
+.balance { position: relative; height: 10px; background: var(--wash); border-radius: 5px; overflow: hidden; margin-top: 2px; }
+.balance i { position: absolute; top: 0; bottom: 0; left: 0; background: var(--ink); }
+.balance b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--accent); }
+.vs { color: var(--accent); margin: 0 8px; }
+.chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; padding: 4px 14px 14px; }
+.chip { font: 500 .8rem var(--body); text-align: left; background: var(--paper); color: var(--ink); border: 1px solid var(--rule); border-radius: 6px; padding: 6px 8px; cursor: pointer; display: grid; gap: 1px; }
+.chip small { font-family: var(--mono); color: var(--muted); font-size: .72rem; }
+.chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
+.chip[aria-pressed="true"] small { color: var(--accent-ink); }
+.chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.subhead { padding: 12px 14px 4px; display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.subhead p { margin: 0; color: var(--muted); font-size: .82rem; }
+.band-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn.solid { background: var(--accent); color: var(--accent-ink); }
+@media (max-width: 560px) { h1 { font-size: 2rem; } .teamname { font-size: 1.6rem; } .dbar { width: 80px; } }
+@media (prefers-reduced-motion: no-preference) { .ruler .fill, .ruler .freed { transition: width .25s ease, left .25s ease; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>NBA Matchmaker</h1>
+    <div class="seg" role="group" aria-label="Mode">
+      <button type="button" id="modeTeam" aria-pressed="true">Find players for a team</button>
+      <button type="button" id="modePlayer" aria-pressed="false">Find teams for a player</button>
+      <button type="button" id="modeTrade" aria-pressed="false">Trade machine</button>
+    </div>
+  </header>
+
+  <section class="controls" aria-label="Filters">
+    <div class="field" id="teamField"><label class="label" for="teamSel" id="teamLbl">Team</label><select id="teamSel"></select></div>
+    <div class="field grow" id="playerField" hidden><label class="label" for="playerSel" id="playerLbl">Player</label><select id="playerSel"></select></div>
+    <div class="field"><label class="label" for="lineSel">Budget line</label>
+      <select id="lineSel">
+        <option value="cap">Salary cap</option>
+        <option value="tax" selected>Luxury tax</option>
+        <option value="apron1">First apron</option>
+        <option value="apron2">Second apron</option>
+      </select></div>
+    <div class="field" id="posField"><label class="label" for="posSel">Position</label>
+      <select id="posSel"><option value="">Any</option><option value="G">Guards</option><option value="F">Forwards</option><option value="C">Centers</option></select></div>
+    <div class="field" id="sortField"><label class="label" for="sortSel">Rank by</label>
+      <select id="sortSel"><option value="net">Net rating change</option><option value="o">Offense (ORtg)</option><option value="d">Defense (DRtg)</option><option value="value">Net change per $10M</option></select></div>
+    <label class="check" id="rookField"><input type="checkbox" id="rookChk"> Include players with no NBA minutes</label>
+  </section>
+
+  <section class="band" id="band" aria-live="polite"></section>
+
+  <div class="grid" id="teamView">
+    <section class="panel">
+      <div class="panel-head"><h2>Roster</h2><p>Tick a player to move him out. His salary and minutes free up.</p></div>
+      <div class="scroll"><table id="rosterTbl"></table></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Best fits</h2><p id="fitNote"></p></div>
+      <div class="scroll"><table id="candTbl"></table></div>
+      <div class="more" id="moreWrap" hidden><button class="btn" id="moreBtn" type="button">Show 30 more</button></div>
+    </section>
+  </div>
+
+  <div class="grid" id="tradeView" hidden>
+    <section class="panel">
+      <div class="panel-head"><h2>You send</h2><p id="sendNote">Tick players and picks to include them.</p></div>
+      <div class="scroll"><table id="sendTbl"></table></div>
+      <div class="subhead"><h3>Draft picks</h3><p>Your own picks. Value depends on where your team is projected to finish.</p></div>
+      <div class="chips" id="pickChips"></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>You get</h2><p>Add teammates of his to balance salary.</p></div>
+      <div class="scroll"><table id="getTbl"></table></div>
+    </section>
+  </div>
+
+  <section class="panel" id="playerView" hidden>
+    <div class="panel-head"><h2>Team fits</h2><p id="teamFitNote"></p></div>
+    <div class="scroll"><table id="teamFitTbl"></table></div>
+  </section>
+
+</div>
+
+<script>
+const DATA = /*DATA*/null;
+const M = DATA.meta, TEAMS = DATA.teams, P = DATA.players;
+P.forEach((p, i) => p.i = i);
+const LINE_NAMES = { cap: "Salary cap", tax: "Luxury tax", apron1: "First apron", apron2: "Second apron" };
+const GRP = { G: "guard", F: "forward", C: "center" };
+const state = { mode: "team", team: "DET", player: null, line: "tax", pos: "", sort: "net", rook: false, out: new Set(), sel: null, mins: {}, shown: 30,
+  tr: { send: new Set(), get: new Set(), picks: new Set(), msg: "" } };
+const resetTrade = () => { state.tr = { send: new Set(), get: new Set(), picks: new Set(), msg: "" }; };
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const money = v => (v < 0 ? "−$" : "$") + (Math.abs(v) / 1e6).toFixed(1) + "M";
+const sgn = (v, d = 1) => (v > 0.0049 ? "+" : v < -0.0049 ? "−" : "") + Math.abs(v).toFixed(d);
+const cls = (v, betterHigh = true) => Math.abs(v) < 0.05 ? "" : ((v > 0) === betterHigh ? "pos" : "neg");
+const teamOf = a => TEAMS.find(t => t.abbr === a);
+const net = p => p.o + p.d;
+
+function allocate(roster) {
+  const mins = new Map(); let left = 240;
+  [...roster].sort((a, b) => b.mpg - a.mpg).forEach(p => { const m = Math.min(p.mpg, M.mpgCap, left); mins.set(p.i, m); left -= m; });
+  let used = 0; mins.forEach(v => used += v);
+  if (left > 0.5 && used) mins.forEach((v, k) => mins.set(k, Math.min(M.mpgCap, v * 240 / used)));
+  return mins;
+}
+function ratings(roster, mins) {
+  let o = 0, d = 0; roster.forEach(p => { o += p.o * mins.get(p.i); d += p.d * mins.get(p.i); });
+  return { ortg: M.leagueORtg + o / 48, drtg: M.leagueORtg - d / 48 };
+}
+function evaluate(roster, mins, c, m) {
+  m = m ?? Math.min(c.mpg, M.mpgCap);
+  const same = roster.filter(p => p.grp === c.grp).sort((a, b) => net(a) - net(b));
+  const rest = roster.filter(p => p.grp !== c.grp).sort((a, b) => net(a) - net(b));
+  let need = m; const taken = [];
+  for (const p of [...same, ...rest]) { if (need <= 0) break; const t = Math.min(mins.get(p.i), need); if (t > 0) { taken.push([p, t]); need -= t; } }
+  let o = c.o * m, d = c.d * m; taken.forEach(([p, t]) => { o -= p.o * t; d -= p.d * t; });
+  return { m, dO: o / 48, dD: -d / 48, net: (o + d) / 48, taken };
+}
+function teamCtx(abbr, out = new Set()) {
+  const t = teamOf(abbr), all = P.filter(p => p.team === abbr);
+  const roster = all.filter(p => !out.has(p.i));
+  const freed = all.filter(p => out.has(p.i)).reduce((s, p) => s + p.salary, 0);
+  const mins = allocate(roster);
+  return { t, all, roster, mins, freed, payroll: t.payroll - freed, room: M.lines[state.line] - t.payroll + freed, base: ratings(roster, mins) };
+}
+
+/* ---------- rendering ---------- */
+function ruler(payroll, freed) {
+  const lo = 140e6, hi = 235e6, x = v => Math.max(0, Math.min(100, (v - lo) / (hi - lo) * 100));
+  const marks = [["cap", "Cap", "Cap", "--line-cap"], ["tax", "Tax", "Tax", "--line-tax"], ["apron1", "1st apron", "1st", "--line-ap1"], ["apron2", "2nd apron", "2nd", "--line-ap2"]];
+  return `<div class="ruler" role="img" aria-label="Payroll ${money(payroll)} against the cap, tax and apron lines">
+    <div class="track"></div>
+    <div class="fill" style="width:${x(payroll)}%"></div>
+    ${freed ? `<div class="freed" style="left:${x(payroll)}%;width:${x(payroll + freed) - x(payroll)}%"></div>` : ""}
+    ${marks.map(([k, n, sn, c]) => `<div class="mark ${k === state.line ? "active" : ""}" style="left:${x(M.lines[k])}%;background:var(${c})"><span style="color:var(${c})"><b class="long">${n}</b><b class="short">${sn}</b></span><em>${(M.lines[k] / 1e6).toFixed(1)}</em></div>`).join("")}
+  </div>`;
+}
+function tile(label, v, delta, betterHigh) {
+  const d = delta == null ? "" : `<small class="${cls(delta, betterHigh)}">${sgn(delta)}</small>`;
+  return `<div class="tile"><span class="label">${label}</span><span class="v">${v.toFixed(1)}${d}</span></div>`;
+}
+
+function renderTeam() {
+  const ctx = teamCtx(state.team, state.out);
+  const { t, roster, mins, base } = ctx;
+  let selEval = null;
+  if (state.sel != null) {
+    const c = P[state.sel];
+    if (c && c.team !== state.team && c.salary <= ctx.room) selEval = evaluate(roster, mins, c, state.mins[c.i]);
+    else state.sel = null;
+  }
+  const after = selEval ? { ortg: base.ortg + selEval.dO, drtg: base.drtg + selEval.dD } : null;
+  const netv = base.ortg - base.drtg;
+  $("band").innerHTML = `
+    <div class="band-top">
+      <div><div class="label">${t.abbr} · ${roster.length} players under contract</div><div class="teamname">${esc(t.name)}</div></div>
+      <div class="tiles">
+        ${tile("Proj. ORtg", after ? after.ortg : base.ortg, after ? selEval.dO : null, true)}
+        ${tile("Proj. DRtg", after ? after.drtg : base.drtg, after ? selEval.dD : null, false)}
+        ${tile("Proj. Net", after ? after.ortg - after.drtg : netv, after ? selEval.net : null, true)}
+        <div class="tile"><span class="label">Payroll</span><span class="v">${money(ctx.payroll)}</span></div>
+      </div>
+    </div>
+    ${ruler(ctx.payroll, ctx.freed)}
+    <div class="roomline">${ctx.room >= 0 ? `Room under the ${LINE_NAMES[state.line].toLowerCase()}: <b>${money(ctx.room)}</b>` : `<span class="neg">Over the ${LINE_NAMES[state.line].toLowerCase()} by <b>${money(-ctx.room)}</b>.</span> Move players out on the roster to make room.`}
+      ${ctx.freed ? ` <span class="sub">(includes ${money(ctx.freed)} freed by players moved out)</span>` : ""}
+      ${t.dead ? ` <span class="sub">Payroll includes ${money(t.dead)} of dead money.</span>` : ""}
+</div>`;
+
+  // roster
+  const rows = [...ctx.all].sort((a, b) => (mins.get(b.i) ?? -1) - (mins.get(a.i) ?? -1) || b.salary - a.salary);
+  $("rosterTbl").innerHTML = `<thead><tr><th>Out</th><th>Player</th><th class="r">Salary</th><th class="r">Min</th><th class="r">Off</th><th class="r">Def</th></tr></thead><tbody>${
+    rows.map(p => { const out = state.out.has(p.i), m = mins.get(p.i);
+      return `<tr class="${out ? "out" : ""}"><td class="keep"><input type="checkbox" id="out-${p.i}" data-out="${p.i}" ${out ? "checked" : ""} aria-label="Move ${esc(p.name)} out"></td>
+      <td><label for="out-${p.i}"><span class="pname">${esc(p.name)}</span> <span class="sub">${p.pos}${p.age ? " · " + p.age : ""}</span>${p.est ? '<span class="tag est">No NBA data</span>' : ""}</label></td>
+      <td class="r num">${money(p.salary)}</td><td class="r num">${out ? "—" : m.toFixed(1)}</td>
+      <td class="r num ${cls(p.o)}">${sgn(p.o)}</td><td class="r num ${cls(p.d)}">${sgn(p.d)}</td></tr>`; }).join("")}</tbody>`;
+
+  // candidates
+  let cands = P.filter(c => c.team !== state.team && c.salary > 0 && c.salary <= ctx.room && (state.rook || !c.est) && (!state.pos || c.grp === state.pos))
+    .map(c => ({ c, e: evaluate(roster, mins, c, state.mins[c.i]) }));
+  const key = { net: r => r.e.net, o: r => r.e.dO, d: r => -r.e.dD, value: r => r.e.net / (r.c.salary / 1e7) }[state.sort];
+  cands.sort((a, b) => key(b) - key(a));
+  $("fitNote").textContent = ctx.room < 0 ? "No one fits until the payroll is back under the line." : `${cands.length} players fit in ${money(ctx.room)} of room. Click a row for the minutes math.`;
+  const list = cands.slice(0, state.shown);
+  $("moreWrap").hidden = cands.length <= state.shown;
+  if (!list.length) { $("candTbl").innerHTML = `<tbody><tr><td class="empty">${ctx.room < 0 ? "Tick players on the roster to free salary." : "No player at this position fits the budget."}</td></tr></tbody>`; return; }
+  $("candTbl").innerHTML = `<thead><tr><th>#</th><th>Player</th><th class="r">Salary</th><th class="r">Min</th><th class="r">ORtg</th><th class="r">DRtg</th><th class="r">Net</th><th aria-label="Net change bar"></th></tr></thead><tbody>${
+    list.map(({ c, e }, k) => {
+      const w = Math.min(50, Math.abs(e.net) / 6 * 50);
+      const row = `<tr class="row ${state.sel === c.i ? "sel" : ""}" tabindex="0" data-sel="${c.i}" aria-expanded="${state.sel === c.i}">
+        <td class="rank">${k + 1}</td>
+        <td><span class="pname">${esc(c.name)}</span>${c.est ? '<span class="tag est">No NBA data</span>' : ""}<div class="sub">${c.team} · ${c.pos}${c.age ? " · " + c.age : ""}${c.arch ? " · " + esc(c.arch) : ""}</div></td>
+        <td class="r num">${money(c.salary)}</td><td class="r num">${e.m.toFixed(1)}</td>
+        <td class="r num ${cls(e.dO)}">${sgn(e.dO)}</td><td class="r num ${cls(e.dD, false)}">${sgn(e.dD)}</td>
+        <td class="r num ${cls(e.net)}"><b>${sgn(e.net)}</b></td>
+        <td><div class="dbar"><i class="${e.net >= 0 ? "p" : "n"}" style="width:${w}%"></i></div></td></tr>`;
+      return state.sel === c.i ? row + detailRow(c, e, base, 8) : row;
+    }).join("")}</tbody>`;
+}
+
+function detailRow(c, e, base, span) {
+  return `<tr class="detail"><td colspan="${span}"><div class="detail-grid">
+    <div class="slider"><label class="label" for="minSlider">Minutes for ${esc(c.name)}</label>
+      <input type="range" id="minSlider" min="4" max="40" step="0.5" value="${e.m}" data-for="${c.i}">
+      <span class="sub">${e.m.toFixed(1)} min per game · last season ${c.mpg.toFixed(1)} over ${c.gp} games${c.season && c.season !== M.impactSeason ? ` (${c.season}, his last full season)` : ""}</span>
+      <div class="ba"><span></span><span class="label r">Now</span><span class="label r">With him</span>
+        <span>ORtg</span><span class="num">${base.ortg.toFixed(1)}</span><span class="num ${cls(e.dO)}">${(base.ortg + e.dO).toFixed(1)}</span>
+        <span>DRtg</span><span class="num">${base.drtg.toFixed(1)}</span><span class="num ${cls(e.dD, false)}">${(base.drtg + e.dD).toFixed(1)}</span></div>
+    </div>
+    <div><span class="label">His impact per 100 possessions</span><ul>
+      <li><span>Offense</span><span class="num ${cls(c.o)}">${sgn(c.o, 2)}</span></li>
+      <li><span>Defense</span><span class="num ${cls(c.d)}">${sgn(c.d, 2)}</span></li>
+      <li><span>Contract</span><span class="num">${money(c.salary)} · ${c.years} yr${c.years === 1 ? "" : "s"} left</span></li>
+      ${c.role ? `<li><span>Defensive role</span><span>${esc(c.role)}</span></li>` : ""}</ul></div>
+    <div><span class="label">Minutes he takes</span><ul>
+      ${e.taken.map(([p, t]) => `<li><span>${esc(p.name)} <span class="sub">${p.pos} · O ${sgn(p.o)} D ${sgn(p.d)}</span></span><span class="num">−${t.toFixed(1)}</span></li>`).join("") || "<li>Nobody, the rotation had open minutes.</li>"}</ul></div>
+  </div></td></tr>`;
+}
+
+function renderPlayer() {
+  const c = P[state.player];
+  const rows = TEAMS.filter(t => t.abbr !== c.team).map(t => {
+    const ctx = teamCtx(t.abbr);
+    return { t, ctx, fits: c.salary <= ctx.room, e: evaluate(ctx.roster, ctx.mins, c, state.mins[c.i]) };
+  });
+  const key = { net: r => r.e.net, o: r => r.e.dO, d: r => -r.e.dD, value: r => r.e.net }[state.sort];
+  rows.sort((a, b) => (b.fits - a.fits) || key(b) - key(a));
+  const fitN = rows.filter(r => r.fits).length;
+  $("band").innerHTML = `<div class="band-top">
+      <div><div class="label">${c.team} · ${c.pos}${c.age ? " · age " + c.age : ""}${c.arch ? " · " + esc(c.arch) : ""}</div><div class="teamname">${esc(c.name)}</div></div>
+      <div class="tiles">
+        <div class="tile"><span class="label">Salary</span><span class="v">${money(c.salary)}</span></div>
+        <div class="tile"><span class="label">Off impact</span><span class="v ${cls(c.o)}">${sgn(c.o, 2)}</span></div>
+        <div class="tile"><span class="label">Def impact</span><span class="v ${cls(c.d)}">${sgn(c.d, 2)}</span></div>
+        <div class="tile"><span class="label">Min / game</span><span class="v">${c.mpg.toFixed(1)}</span></div>
+      </div></div>
+    <div class="roomline">${c.salary <= 0 ? "He has no 2026-27 cap figure (two-way or non-guaranteed deal), so any team can fit him." : `${fitN} of 29 teams have ${money(c.salary)} of room under the ${LINE_NAMES[state.line].toLowerCase()}.`}
+      ${c.est ? ' <span class="tag est">No NBA data</span> <span class="sub">Impact is the average first-year player\'s.</span>' : ""}
+      ${c.season && c.season !== M.impactSeason ? ` <span class="sub">Impact from ${c.season}, his last full season.</span>` : ""}</div>`;
+  $("teamFitNote").textContent = `Teams that can afford him come first, ranked by ${$("sortSel").selectedOptions[0].text.toLowerCase()}. He plays ${Math.min(c.mpg, M.mpgCap).toFixed(1)} minutes on every team.`;
+  $("teamFitTbl").innerHTML = `<thead><tr><th>#</th><th>Team</th><th>Budget</th><th class="r">ORtg</th><th class="r">DRtg</th><th class="r">Net</th><th></th><th>Minutes come from</th></tr></thead><tbody>${
+    rows.map((r, k) => {
+      const w = Math.min(50, Math.abs(r.e.net) / 6 * 50);
+      const who = r.e.taken.slice(0, 3).map(([p, t]) => `${esc(p.name)} ${t.toFixed(0)}`).join(", ");
+      return `<tr class="${r.fits ? "" : "out-budget"}"><td class="rank">${k + 1}</td>
+        <td><span class="pname">${esc(r.t.name)}</span><div class="sub">Now ${r.ctx.base.ortg.toFixed(1)} / ${r.ctx.base.drtg.toFixed(1)}</div></td>
+        <td>${r.fits ? `<span class="tag fit">Fits</span> <span class="sub num">${money(r.ctx.room)} room</span>` : `<span class="tag nofit">Short ${money(c.salary - r.ctx.room)}</span>`}</td>
+        <td class="r num ${cls(r.e.dO)}">${sgn(r.e.dO)}</td><td class="r num ${cls(r.e.dD, false)}">${sgn(r.e.dD)}</td>
+        <td class="r num ${cls(r.e.net)}"><b>${sgn(r.e.net)}</b></td>
+        <td><div class="dbar"><i class="${r.e.net >= 0 ? "p" : "n"}" style="width:${w}%"></i></div></td>
+        <td class="sub">${who}</td></tr>`;
+    }).join("")}</tbody>`;
+}
+
+/* ---------- trade machine ---------- */
+const PICK_YEARS = [2027, 2028, 2029, 2030, 2031, 2032, 2033];
+let BASE_NET = null;
+function projectedSlot(abbr) {
+  // Worst projected net rating picks first.
+  if (!BASE_NET) BASE_NET = TEAMS.map(t => { const r = teamCtx(t.abbr).base; return [t.abbr, r.ortg - r.drtg]; }).sort((a, b) => a[1] - b[1]).map(x => x[0]);
+  return BASE_NET.indexOf(abbr) + 1;
+}
+// A pick is worth the average value of the slots it could land in. The spread around the
+// projected slot widens each year out, and value is discounted for the wait.
+function pickValue(abbr, year, round) {
+  const TR = M.trade, u = year - PICK_YEARS[0], wait = Math.pow(TR.discount, u + 1);
+  if (round === 2) return TR.pick2 * wait;
+  const mu = projectedSlot(abbr), sd = 3 + 3 * u;
+  let tot = 0, wsum = 0;
+  for (let s = 1; s <= 30; s++) { const w = Math.exp(-0.5 * ((s - mu) / sd) ** 2); tot += w * TR.pick1[s - 1]; wsum += w; }
+  return tot / wsum * wait;
+}
+const playerValue = p => p.tv;
+const TIER_TAG = { superstar: '<span class="tag star">Superstar</span>', star: '<span class="tag star">Star</span>' };
+const pickLabel = k => { const [y, r] = k.split("-"); return `${y} ${r === "1" ? "1st" : "2nd"}`; };
+
+function rebuild(abbr, outIds, incoming) {
+  let roster = P.filter(p => p.team === abbr && !outIds.has(p.i));
+  const mins = allocate(roster);
+  for (const c of [...incoming].sort((a, b) => b.mpg - a.mpg)) {
+    const e = evaluate(roster, mins, c);
+    e.taken.forEach(([p, t]) => mins.set(p.i, mins.get(p.i) - t));
+    roster = [...roster, c]; mins.set(c.i, e.m);
+  }
+  return { roster, mins, r: ratings(roster, mins) };
+}
+function tradeCalc(sendIds, getIds, picks) {
+  const me = state.team, them = P[state.player].team, line = M.lines[state.line];
+  const send = [...sendIds].map(i => P[i]), get = [...getIds].map(i => P[i]);
+  const salOut = send.reduce((s, p) => s + p.salary, 0), salIn = get.reduce((s, p) => s + p.salary, 0);
+  // A team may finish over the line only if it takes back no more than 110% of the salary it sends out.
+  const side = (abbr, outSet, incoming, sent, taken) => {
+    const before = teamCtx(abbr).base, after = rebuild(abbr, outSet, incoming).r;
+    const payBefore = teamOf(abbr).payroll, payAfter = payBefore + taken - sent;
+    return { before, after, payBefore, payAfter, ok: payAfter <= line || taken <= sent * 1.1, matched: payAfter > line,
+      dO: after.ortg - before.ortg, dD: after.drtg - before.drtg, net: (after.ortg - after.drtg) - (before.ortg - before.drtg) };
+  };
+  const pickVal = [...picks].reduce((s, k) => { const [y, r] = k.split("-"); return s + pickValue(me, +y, +r); }, 0);
+  const valGive = send.reduce((s, p) => s + playerValue(p), 0) + pickVal;
+  const valGet = get.reduce((s, p) => s + playerValue(p), 0);
+  return { send, get, salOut, salIn, pickVal, valGive, valGet,
+    mine: side(me, sendIds, get, salOut, salIn), theirs: side(them, getIds, send, salIn, salOut) };
+}
+function tradeIds() {
+  const c = P[state.player];
+  const get = new Set([c.i, ...[...state.tr.get].filter(i => P[i].team === c.team)]);
+  const send = new Set([...state.tr.send].filter(i => P[i].team === state.team));
+  return { send, get };
+}
+
+function suggestPackage() {
+  const { get } = tradeIds();
+  const mine = P.filter(p => p.team === state.team && p.salary > 0);
+  const allPicks = PICK_YEARS.flatMap(y => [`${y}-1`, `${y}-2`]).map(k => { const [y, r] = k.split("-"); return [k, pickValue(state.team, +y, +r)]; }).sort((a, b) => b[1] - a[1]);
+  let best = null;
+  const tryCombo = combo => {
+    const ids = new Set(combo.map(p => p.i));
+    let T = tradeCalc(ids, get, new Set());
+    if (!T.mine.ok || !T.theirs.ok) return;
+    // Fewest picks that close the value gap (at most 4): add the most valuable first,
+    // then swap the last one for the cheapest pick that still covers.
+    let gap = T.valGet - T.valGive; const picks = [];
+    for (const pk of allPicks) { if (gap <= 0 || picks.length === 4) break; picks.push(pk); gap -= pk[1]; }
+    if (gap > 0) return;
+    if (picks.length) {
+      const last = picks.pop(), need = gap + last[1];
+      const cheaper = allPicks.filter(pk => !picks.includes(pk) && pk[1] >= need).pop() || last;
+      picks.push(cheaper); gap = need - cheaper[1];
+    }
+    const overpay = -gap, score = T.mine.net - 0.25 * picks.length;
+    if (!best || score > best.score + 1e-9 || (Math.abs(score - best.score) < 1e-9 && overpay < best.overpay)) best = { ids, picks: new Set(picks.map(pk => pk[0])), score, overpay };
+  };
+  for (let a = 0; a < mine.length; a++) {
+    tryCombo([mine[a]]);
+    for (let b = a + 1; b < mine.length; b++) {
+      tryCombo([mine[a], mine[b]]);
+      for (let c = b + 1; c < mine.length; c++) tryCombo([mine[a], mine[b], mine[c]]);
+    }
+  }
+  if (!best) { state.tr.msg = "No package of up to three players and four picks makes the money and the value work. Try adding his teammates or a higher budget line."; return; }
+  state.tr.send = best.ids; state.tr.picks = best.picks;
+  state.tr.msg = tradeCalc(best.ids, get, best.picks).mine.net >= 0 ? "Suggested: the package that helps your team most while giving them at least as much value back."
+    : "Every package that works makes your team worse. This one costs you the least.";
+}
+
+function statBlock(title, big, pill, sub) {
+  return `<div class="stat"><span class="label">${title}</span><span class="big">${big}</span>${pill || ""}${sub ? `<span class="sub">${sub}</span>` : ""}</div>`;
+}
+function renderTrade() {
+  const c = P[state.player], me = teamOf(state.team);
+  if (c.team === state.team) {
+    $("band").innerHTML = `<div class="roomline">${esc(c.name)} already plays for the ${esc(me.name)}. Pick a player from another team.</div>`;
+    $("sendTbl").innerHTML = $("getTbl").innerHTML = $("pickChips").innerHTML = ""; return;
+  }
+  const them = teamOf(c.team), { send, get } = tradeIds(), T = tradeCalc(send, get, state.tr.picks);
+  const lineName = LINE_NAMES[state.line].toLowerCase(), line = M.lines[state.line];
+  const payPill = s => s.ok ? `<span class="pill ok">${s.payAfter <= line ? "Under the " + lineName : "Over the line, salaries match"}</span>` : `<span class="pill bad">Over the ${lineName} by ${money(s.payAfter - line)}</span>`;
+  const theyGain = T.valGive - T.valGet;
+  const verdict = !send.size && !state.tr.picks.size ? `<span class="pill bad">Add players or picks</span>`
+    : theyGain >= 0 ? `<span class="pill ok">They come out ahead by ${money(theyGain)}</span>` : `<span class="pill bad">They lose ${money(-theyGain)} of value</span>`;
+  const total = Math.max(1, Math.abs(T.valGive) + Math.abs(T.valGet));
+  const works = T.mine.ok && T.theirs.ok && theyGain >= 0 && (send.size || state.tr.picks.size);
+  $("band").innerHTML = `
+    <div class="band-top">
+      <div><div class="label">Trade machine · ${send.size} player${send.size === 1 ? "" : "s"} and ${state.tr.picks.size} pick${state.tr.picks.size === 1 ? "" : "s"} for ${get.size} player${get.size === 1 ? "" : "s"}</div>
+        <div class="teamname">${esc(me.abbr)}<span class="vs">⇄</span>${esc(them.abbr)}</div></div>
+      <div class="tiles">
+        ${tile("Proj. ORtg", T.mine.after.ortg, T.mine.dO, true)}
+        ${tile("Proj. DRtg", T.mine.after.drtg, T.mine.dD, false)}
+        ${tile("Proj. Net", T.mine.after.ortg - T.mine.after.drtg, T.mine.net, true)}
+      </div>
+    </div>
+    <div class="trade-band">
+      ${statBlock("Salary", `${money(T.salOut)} out · ${money(T.salIn)} in`, "", `Net change for you: ${T.salIn - T.salOut >= 0 ? "+" : ""}${money(T.salIn - T.salOut)}`)}
+      ${statBlock(`${esc(me.name)} payroll`, money(T.mine.payAfter), payPill(T.mine), `Was ${money(T.mine.payBefore)}`)}
+      ${statBlock(`${esc(them.name)} payroll`, money(T.theirs.payAfter), payPill(T.theirs), `Was ${money(T.theirs.payBefore)}`)}
+      ${statBlock("Trade value", `${money(T.valGive)} sent · ${money(T.valGet)} back`, verdict,
+        `<div class="balance" aria-hidden="true"><i style="width:${Math.abs(T.valGive) / total * 100}%"></i><b style="left:50%"></b></div>`)}
+      ${statBlock(`Effect on ${esc(them.name)}`, `<span class="${cls(T.theirs.net)}">${sgn(T.theirs.net)} net</span>`, "", `ORtg ${sgn(T.theirs.dO)} · DRtg ${sgn(T.theirs.dD)}`)}
+    </div>
+    <div class="band-actions">
+      <button class="btn solid" id="suggestBtn" type="button">Suggest a package</button>
+      <button class="btn" id="clearBtn" type="button">Clear</button>
+      <span class="sub">${state.tr.msg ? esc(state.tr.msg) : works ? "This trade works on money and value." : ""}</span>
+    </div>`;
+
+  const rowsFor = (abbr, chosen, key, lockId) => {
+    const ctx = teamCtx(abbr);
+    return [...ctx.all].sort((a, b) => (ctx.mins.get(b.i) ?? 0) - (ctx.mins.get(a.i) ?? 0) || b.salary - a.salary).map(p => {
+      const on = chosen.has(p.i), v = playerValue(p), locked = p.i === lockId;
+      return `<tr class="${on ? "sel" : ""}"><td class="keep"><input type="checkbox" id="${key}-${p.i}" data-${key}="${p.i}" ${on ? "checked" : ""} ${locked ? "disabled" : ""} aria-label="Include ${esc(p.name)}"></td>
+        <td><label for="${key}-${p.i}"><span class="pname">${esc(p.name)}</span> <span class="sub">${p.pos}${p.age ? " · " + p.age : ""}</span>${p.est ? '<span class="tag est">No NBA data</span>' : ""}${TIER_TAG[p.tier] || ""}${locked ? '<span class="tag fit">Target</span>' : ""}</label></td>
+        <td class="r num">${money(p.salary)}</td><td class="r num">${(ctx.mins.get(p.i) ?? 0).toFixed(1)}</td>
+        <td class="r num ${cls(v / 1e6)}">${p.est && !v ? "—" : money(v)}</td></tr>`;
+    }).join("");
+  };
+  const head = `<thead><tr><th></th><th>Player</th><th class="r">Salary</th><th class="r">Min</th><th class="r">Value</th></tr></thead>`;
+  $("sendTbl").innerHTML = head + `<tbody>${rowsFor(state.team, send, "send", -1)}</tbody>`;
+  $("getTbl").innerHTML = head + `<tbody>${rowsFor(c.team, get, "get", c.i)}</tbody>`;
+  $("sendNote").textContent = `Value = his wins at market price minus his salary, over his contract (up to 4 years). All-Stars carry a premium. Projected draft slot: #${projectedSlot(state.team)}.`;
+  $("pickChips").innerHTML = PICK_YEARS.flatMap(y => [1, 2].map(r => {
+    const k = `${y}-${r}`;
+    return `<button type="button" class="chip" data-pick="${k}" aria-pressed="${state.tr.picks.has(k)}">${pickLabel(k)}<small>${money(pickValue(state.team, y, r))}</small></button>`;
+  })).join("");
+}
+
+function render() {
+  const m = state.mode, team = m === "team", trade = m === "trade";
+  $("modeTeam").setAttribute("aria-pressed", team); $("modePlayer").setAttribute("aria-pressed", m === "player"); $("modeTrade").setAttribute("aria-pressed", trade);
+  $("teamField").hidden = m === "player"; $("playerField").hidden = team; $("posField").hidden = !team; $("rookField").hidden = !team; $("sortField").hidden = trade;
+  $("teamLbl").textContent = trade ? "Your team" : "Team"; $("playerLbl").textContent = trade ? "Player you want" : "Player";
+  $("teamView").hidden = !team; $("playerView").hidden = m !== "player"; $("tradeView").hidden = !trade;
+  team ? renderTeam() : trade ? renderTrade() : renderPlayer();
+}
+
+/* ---------- controls ---------- */
+$("teamSel").innerHTML = [...TEAMS].sort((a, b) => a.name.localeCompare(b.name)).map(t => `<option value="${t.abbr}">${esc(t.name)}</option>`).join("");
+$("playerSel").innerHTML = [...TEAMS].sort((a, b) => a.name.localeCompare(b.name)).map(t =>
+  `<optgroup label="${esc(t.name)}">${P.filter(p => p.team === t.abbr).sort((a, b) => b.salary - a.salary).map(p => `<option value="${p.i}">${esc(p.name)} · ${money(p.salary)}</option>`).join("")}</optgroup>`).join("");
+state.player = P.findIndex(p => p.name === "Ty Jerome"); if (state.player < 0) state.player = 0;
+$("teamSel").value = state.team; $("playerSel").value = state.player;
+
+$("modeTeam").onclick = () => { state.mode = "team"; render(); };
+$("modePlayer").onclick = () => { state.mode = "player"; render(); };
+$("modeTrade").onclick = () => { state.mode = "trade"; render(); };
+$("teamSel").onchange = e => { state.team = e.target.value; state.out.clear(); state.sel = null; state.shown = 30; resetTrade(); render(); };
+$("playerSel").onchange = e => { state.player = +e.target.value; state.tr.get = new Set(); state.tr.msg = ""; render(); };
+$("lineSel").onchange = e => { state.line = e.target.value; render(); };
+$("posSel").onchange = e => { state.pos = e.target.value; state.shown = 30; render(); };
+$("sortSel").onchange = e => { state.sort = e.target.value; render(); };
+$("rookChk").onchange = e => { state.rook = e.target.checked; render(); };
+$("moreBtn").onclick = () => { state.shown += 30; render(); };
+$("rosterTbl").addEventListener("change", e => { const i = e.target.dataset.out; if (i == null) return; e.target.checked ? state.out.add(+i) : state.out.delete(+i); render(); });
+const pick = tr => { const i = +tr.dataset.sel; state.sel = state.sel === i ? null : i; render(); };
+$("candTbl").addEventListener("click", e => { const tr = e.target.closest("tr.row"); if (tr) pick(tr); });
+$("candTbl").addEventListener("keydown", e => { const tr = e.target.closest("tr.row"); if (tr && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pick(tr); } });
+$("candTbl").addEventListener("input", e => {
+  if (e.target.id !== "minSlider") return;
+  state.mins[+e.target.dataset.for] = +e.target.value; render();
+  const s = $("minSlider"); if (s) s.focus();
+});
+
+const toggle = (set, i, on) => { on ? set.add(i) : set.delete(i); state.tr.msg = ""; render(); };
+$("sendTbl").addEventListener("change", e => { const i = e.target.dataset.send; if (i != null) toggle(state.tr.send, +i, e.target.checked); });
+$("getTbl").addEventListener("change", e => { const i = e.target.dataset.get; if (i != null) toggle(state.tr.get, +i, e.target.checked); });
+$("pickChips").addEventListener("click", e => { const b = e.target.closest("[data-pick]"); if (b) toggle(state.tr.picks, b.dataset.pick, !state.tr.picks.has(b.dataset.pick)); });
+$("band").addEventListener("click", e => {
+  if (e.target.id === "suggestBtn") { suggestPackage(); render(); }
+  if (e.target.id === "clearBtn") { resetTrade(); render(); }
+});
+
+// Open on a working example: Detroit, with the top fit expanded.
+render();
+const first = document.querySelector("#candTbl tr.row"); if (first) pick(first);
+</script>
